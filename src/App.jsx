@@ -39,7 +39,17 @@ export default function App() {
   const [themeIndex, setThemeIndex] = useState(0)
   const theme = useMemo(() => THEMES[themeIndex], [themeIndex])
   const [menuOpen, setMenuOpen] = useState(false)
-  const [showPortfolio, setShowPortfolio] = useState(true)
+
+  // Persist the active page (Portfolio vs Art/Hero)
+  const [showPortfolio, setShowPortfolio] = useState(() => {
+    const saved = localStorage.getItem('portfolioMode')
+    return saved !== null ? saved === 'true' : true
+  })
+
+  useEffect(() => {
+    localStorage.setItem('portfolioMode', showPortfolio)
+  }, [showPortfolio])
+
   const [showOverlayName, setShowOverlayName] = useState(false)
   const [showLogoName, setShowLogoName] = useState(false)
   const [showBottomName, setShowBottomName] = useState(false)
@@ -57,7 +67,6 @@ export default function App() {
   const heroRef = useRef(null)
   const aboutRef = useRef(null)
   const galleryRef = useRef(null)
-  const [galleryRow, setGalleryRow] = useState(0) // 0,1,2
   const [galleryDir, setGalleryDir] = useState('') // 'up' | 'down'
   const cursorRef = useRef(null)
   const lastPos = useRef({ x: 0, y: 0 })
@@ -172,7 +181,7 @@ export default function App() {
     return new URL(`./drawing image/${name}`, import.meta.url).href;
   };
 
-  // 3x3 scroll gallery images
+  // 4x4 scroll gallery images (9 drawings)
   const galleryImages = useMemo(() => ([
     getImageUrl('WhatsApp Image 2025-10-23 at 09.34.49_1e119233.jpg'),
     getImageUrl('WhatsApp Image 2025-10-23 at 09.34.50_9579e426.jpg'),
@@ -185,23 +194,23 @@ export default function App() {
     getImageUrl('WhatsApp Image 2025-10-23 at 09.34.53_d911fe82.jpg')
   ]), [])
 
-  // Wheel control for gallery: prevent page scroll inside area
+  // Natural scroll handling instead of manual row state
+
+  // Intersection Observer for scroll reveal
   useEffect(() => {
-    const el = galleryRef.current
-    if (!el) return
-    const onWheel = (e) => {
-      e.preventDefault()
-      if (e.deltaY > 0) {
-        setGalleryDir('down')
-        setGalleryRow((r) => Math.min(2, r + 1))
-      } else if (e.deltaY < 0) {
-        setGalleryDir('up')
-        setGalleryRow((r) => Math.max(0, r - 1))
-      }
-    }
-    el.addEventListener('wheel', onWheel, { passive: false })
-    return () => el.removeEventListener('wheel', onWheel)
-  }, [])
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('revealed');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    const revealElements = document.querySelectorAll('[data-reveal], .reveal-stagger');
+    revealElements.forEach(el => observer.observe(el));
+
+    return () => revealElements.forEach(el => observer.unobserve(el));
+  }, [showPortfolio]);
 
   // Global cursor-follow circle
   useEffect(() => {
@@ -234,15 +243,15 @@ export default function App() {
           S{showLogoName ? <span className="logo-name">ANDHANAM.K</span> : null}
         </button>
         <div className="top-actions">
-          <button 
+          <button
             className="app-page-toggle"
             title={showPortfolio ? 'Open ART PORTFOLIO' : 'Open PROFESSIONAL PORTFOLIO'}
             aria-label={showPortfolio ? 'Open ART PORTFOLIO' : 'Open PROFESSIONAL PORTFOLIO'}
           >
             <label className="ui-toggle">
-              <input 
-                type="checkbox" 
-                checked={!showPortfolio} 
+              <input
+                type="checkbox"
+                checked={!showPortfolio}
                 onChange={(e) => setShowPortfolio(!e.target.checked)}
               />
               <span className="slider" data-off="PRO" data-on="ART"></span>
@@ -252,51 +261,51 @@ export default function App() {
       </header>
 
       {!showPortfolio && (
-      <main className="hero" ref={heroRef}>
-        <div className="side left">
-          <div className="monogram">
-            S
-          </div>
-          <div className="tagline near-divider">
-            GREAT WORK SPEAKS
-            <br />
-            WITH PURPOSE
-          </div>
-        </div>
-
-        <div className="center">
-          {/* ✅ SVG divider with taller viewBox to allow deeper bend */}
-          <svg className="divider" viewBox="0 0 100 60" preserveAspectRatio="none">
-            <path d="M 0 30 L 100 30" stroke="var(--line)" strokeWidth="1.5" fill="none" />
-          </svg>
-          <div className={`image-stack ${assembled ? 'assembled' : 'scattering'}`} aria-label="Showcase images">
-            {images.map((src, i) => (
-              <img
-                key={i}
-                className={`stack-img ${i === 0 ? 'fixed' : ''} ${i === activeIndex ? 'active' : ''}`}
-                src={src}
-                alt={`Work sample ${i + 1}`}
-                draggable={false}
-                style={i > 0 ? { ['--x']: `${offsets[i].x}vw`, ['--y']: `${offsets[i].y}vh`, ['--s']: offsets[i].s, ['--r']: `${offsets[i].r}deg` } : undefined}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="side right">
-          <div className="service">DRAWINGS THAT TELL STORIES BEYOND WORDS</div>
-          <div className="k-wrap">
-            <div
-              className="monogram"
-              onMouseEnter={() => setShowBottomName(true)}
-              onMouseLeave={() => setShowBottomName(false)}
-            >
-              K
+        <main className="hero" ref={heroRef}>
+          <div className="side left">
+            <div className="monogram">
+              S
             </div>
-            {showBottomName ? <div className="k-name">Sandanam.K</div> : null}
+            <div className="tagline near-divider">
+              GREAT WORK SPEAKS
+              <br />
+              WITH PURPOSE
+            </div>
           </div>
-        </div>
-      </main>
+
+          <div className="center">
+            {/* ✅ SVG divider with taller viewBox to allow deeper bend */}
+            <svg className="divider" viewBox="0 0 100 60" preserveAspectRatio="none">
+              <path d="M 0 30 L 100 30" stroke="var(--line)" strokeWidth="1.5" fill="none" />
+            </svg>
+            <div className={`image-stack ${assembled ? 'assembled' : 'scattering'}`} aria-label="Showcase images">
+              {images.map((src, i) => (
+                <img
+                  key={i}
+                  className={`stack-img ${i === 0 ? 'fixed' : ''} ${i === activeIndex ? 'active' : ''}`}
+                  src={src}
+                  alt={`Work sample ${i + 1}`}
+                  draggable={false}
+                  style={i > 0 ? { ['--x']: `${offsets[i].x}vw`, ['--y']: `${offsets[i].y}vh`, ['--s']: offsets[i].s, ['--r']: `${offsets[i].r}deg` } : undefined}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="side right">
+            <div className="service">DRAWINGS THAT TELL STORIES BEYOND WORDS</div>
+            <div className="k-wrap">
+              <div
+                className="monogram"
+                onMouseEnter={() => setShowBottomName(true)}
+                onMouseLeave={() => setShowBottomName(false)}
+              >
+                K
+              </div>
+              {showBottomName ? <div className="k-name">Sandanam.K</div> : null}
+            </div>
+          </div>
+        </main>
       )}
 
       <ThemeSquares
@@ -319,10 +328,10 @@ export default function App() {
             </button>
           </header>
           <nav className="overlay-nav">
-            <a href="#about" onClick={(e)=>{e.preventDefault(); setMenuOpen(false); window.location.hash='#about'}}>ABOUT</a>
-            <a href="#work" onClick={(e)=>{e.preventDefault(); setMenuOpen(false); window.location.hash='#work'}}>WORK</a>
-            <a href="#archive" onClick={(e)=>{e.preventDefault(); setMenuOpen(false); window.location.hash='#archive'}}>ARCHIVE</a>
-            <a href="#contact" onClick={(e)=>{e.preventDefault(); setMenuOpen(false); window.location.hash='#contact'}}>CONTACT</a>
+            <a href="#about" onClick={(e) => { e.preventDefault(); setMenuOpen(false); window.location.hash = '#about' }}>ABOUT</a>
+            <a href="#work" onClick={(e) => { e.preventDefault(); setMenuOpen(false); window.location.hash = '#work' }}>WORK</a>
+            <a href="#archive" onClick={(e) => { e.preventDefault(); setMenuOpen(false); window.location.hash = '#archive' }}>ARCHIVE</a>
+            <a href="#contact" onClick={(e) => { e.preventDefault(); setMenuOpen(false); window.location.hash = '#contact' }}>CONTACT</a>
           </nav>
         </div>
       )}
@@ -332,31 +341,78 @@ export default function App() {
         <Portfolio onBack={() => setShowPortfolio(false)} themeIndex={themeIndex} setThemeIndex={setThemeIndex} />
       ) : (
         <>
-          <section className="section section--about" id="about" ref={aboutRef}>
+          <section className="section section--about" id="about" ref={aboutRef} data-reveal>
             <div className="section-inner">
-              <h2 className="section-title">DRAWN WITH INTENTION,<br />CRAFTED WITH PURPOSE</h2>
-              <div className="about-ring" aria-hidden="true" />
-              <div className="about-text">
-                <p>
-                  I approach every drawing with intention — balancing bold ideas with subtle details and bringing clarity and care to each commissioned piece. Whether it's a portrait, concept art, or a custom project, I treat every work as a collaboration built on trust, creativity, and purpose.
-                </p>
-                <p>
-                 Art, for me, is not about noise. It's about meaning — quiet, focused, and deeply human. The best work doesn't have to shout; it listens, connects, and leaves a lasting impression.
-That's the kind of art I create — drawings that speak with purpose.
-                </p>
+              <div className="about-left" data-reveal>
+                <div className="about-portrait-wrapper">
+                  <img src={myPhoto} alt="Sandanam.K portrait" />
+                </div>
+                <button className="portfolio-btn" onClick={() => setShowPortfolio(true)} data-reveal>
+                  Visit my portfolio
+                </button>
               </div>
-              <div className="drawing-image">
-                <img src={myPhoto} alt="Portrait drawing" />
+
+              <div className="about-right">
+                <div className="about-main-col">
+                  <h1 data-reveal>Hello!</h1>
+                  <div className="about-intro-text reveal-stagger">
+                    <p>
+                      I approach every drawing with intention — balancing bold ideas with subtle details and bringing clarity and care to each commissioned piece.
+                    </p>
+                    <p>
+                      Hope you enjoy my portfolio!
+                    </p>
+                  </div>
+
+                  <div className="about-info-col" data-reveal>
+                    <h3 className="about-subheading">EDUCATION</h3>
+                    <ul className="about-list">
+                      <li>
+                        <span className="date">2024 - 2028</span>
+                        Kalvium's UG program in CS<br /> University Of Mysore
+                      </li>
+                      <li>
+                        <span className="date">2021 - 2024</span>
+                        Bharath Polytechnic College<br /> Chennai
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="about-side-col">
+                  <div className="about-info-col" data-reveal>
+                    <h3 className="about-subheading">SKILLS</h3>
+                    <div className="skills-grid">
+                      <div className="skill-icon-card" title="Photoshop">Ps</div>
+                      <div className="skill-icon-card" title="Illustrator">Ai</div>
+                      <div className="skill-icon-card" title="After Effects">Ae</div>
+                      <div className="skill-icon-card" title="Figma">Fg</div>
+                      <div className="skill-icon-card" title="Graphite">Gr</div>
+                      <div className="skill-icon-card" title="Charcoal">Ch</div>
+                    </div>
+                  </div>
+
+                  <div className="about-info-col" data-reveal>
+                    <h3 className="about-subheading">EXPERIENCE</h3>
+                    <ul className="about-list">
+                      <li>
+                        <span className="date">2022 - Present</span>
+                        Freelance Illustrator & Artist
+                      </li>
+                      <li>
+                        <span className="date">2023 - 2024</span>
+                        Project Lead - Visuals
+                      </li>
+                    </ul>
+                  </div>
+                </div>
               </div>
-              <button className="portfolio-btn" onClick={() => setShowPortfolio(true)}>
-                Visit my portfolio
-              </button>
             </div>
           </section>
 
-          <section className="section section--case" id="work">
+          <section className="section section--case" id="work" data-reveal>
             <div className="case-bg" />
-            <div className="section-inner case-grid">
+            <div className="section-inner case-grid reveal-stagger">
               <div className="case-left">
                 <div className="eyebrow">MY CREATIVE STUDIO</div>
                 <h3 className="case-title">AN EVOLUTION OF ARTISTRY SHAPED BY <br />PASSION, PATIENCE, AND PURPOSE.</h3>
@@ -378,17 +434,17 @@ That's the kind of art I create — drawings that speak with purpose.
                 </ul>
               </div>
               <div className="case-right">
-                <a className="view-project" href="#">VIEW DRAWINGS →</a>
+                <a className="view-project" href="https://www.instagram.com/mr.__.sandy?igsh=cGY3YmxzN2hvZmZ3" target="_blank" rel="noopener noreferrer">VIEW DRAWINGS →</a>
               </div>
             </div>
           </section>
 
-          <section className="section section--work" id="archive">
-            <div className="section-inner work-grid">
+          <section className="section section--work" id="archive" data-reveal>
+            <div className="section-inner work-grid reveal-stagger">
               <h2 className="section-title">PAST WORK,<br />LASTING PRIDE</h2>
               <div className="work-note">Thoughtful design stands the test of time, no matter when or why it was made.</div>
               <div className="filmstrip">
-                {[1,2,3,4,5].map((n) => (
+                {[1, 2, 3, 4, 5].map((n) => (
                   <span key={n} className="frame" />
                 ))}
               </div>
@@ -396,19 +452,19 @@ That's the kind of art I create — drawings that speak with purpose.
           </section>
 
           {/* Scroll-controlled 3x3 gallery */}
-          <section className="section section--gallery">
+          <section className="section section--gallery" data-reveal>
             <div className="section-inner">
               <div className={`scroll-gallery ${galleryDir}`} ref={galleryRef} aria-label="Scroll gallery (3 images per view)">
                 <div className="sg-viewport">
-                  <div className="sg-track" style={{ transform: `translateY(-${galleryRow * 100}%)` }}>
-                    {[0,1,2].map((row) => (
+                  <div className="sg-track">
+                    {Array.from({ length: Math.ceil(galleryImages.length / 3) }).map((_, row) => (
                       <div className="sg-row" key={row}>
-                        {galleryImages.slice(row*3, row*3 + 3).map((src, i) => (
-                          <img 
-                            className="sg-thumb" 
-                            key={i} 
-                            src={src} 
-                            alt={`Gallery ${row*3 + i + 1}`} 
+                        {galleryImages.slice(row * 3, row * 3 + 3).map((src, i) => (
+                          <img
+                            className="sg-thumb"
+                            key={i}
+                            src={src}
+                            alt={`Gallery ${row * 3 + i + 1}`}
                             onClick={() => setSelectedImage(src)}
                             style={{ cursor: 'pointer' }}
                           />
@@ -420,11 +476,11 @@ That's the kind of art I create — drawings that speak with purpose.
               </div>
             </div>
           </section>
-          
+
           {/* Image Popup */}
           {selectedImage && (
-            <div 
-              className="image-popup-overlay" 
+            <div
+              className="image-popup-overlay"
               onClick={() => setSelectedImage(null)}
               style={{
                 position: 'fixed',
@@ -440,7 +496,7 @@ That's the kind of art I create — drawings that speak with purpose.
                 padding: '20px'
               }}
             >
-              <div 
+              <div
                 className="image-popup-content"
                 onClick={(e) => e.stopPropagation()}
                 style={{
@@ -449,9 +505,9 @@ That's the kind of art I create — drawings that speak with purpose.
                   maxHeight: '90%'
                 }}
               >
-                <img 
-                  src={selectedImage} 
-                  alt="Full size drawing" 
+                <img
+                  src={selectedImage}
+                  alt="Full size drawing"
                   style={{
                     maxWidth: '100%',
                     maxHeight: '90vh',
@@ -459,7 +515,7 @@ That's the kind of art I create — drawings that speak with purpose.
                     border: '2px solid white'
                   }}
                 />
-                <button 
+                <button
                   onClick={() => setSelectedImage(null)}
                   style={{
                     position: 'absolute',
@@ -478,8 +534,8 @@ That's the kind of art I create — drawings that speak with purpose.
             </div>
           )}
 
-          <section className="section section--contact" id="contact">
-            <div className="section-inner contact-grid">
+          <section className="section section--contact" id="contact" data-reveal>
+            <div className="section-inner contact-grid reveal-stagger">
               <div className="contact-eyebrow">LET’S START THE CONVERSATION</div>
               <div className="contact-title" role="heading" aria-level="2">
                 <span className="line">GREAT DESIGN ISN’T JUST</span>
